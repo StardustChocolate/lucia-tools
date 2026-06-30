@@ -35,7 +35,7 @@ object StatScorer {
         DimParam("critDmg",   "暴击伤害", 100.0,  150.0,   false, 3000.0),
         DimParam("effectHit", "状态命中", 100.0,  0.0,     false, 1000.0),
         DimParam("resist",    "状态抗性", 100.0,  0.0,     false, 1000.0),
-        DimParam("speed",     "速度",     121.0,  121.0,   false, 2800.0)
+        DimParam("speed",     "速度",     121.0,  125.0,   false, 2800.0)
     )
 
     fun dim(key: String) = DIMS.first { it.key == key }
