@@ -1,0 +1,39 @@
+# --- Android / Gradle build outputs ---
+.gradle/
+build/
+app/build/
+app/.cxx/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# --- Local config (machine-specific) ---
+local.properties
+keystore.properties
+
+# --- Signing material (NEVER commit) ---
+*.keystore
+*.jks
+*.p12
+
+# --- Built / packaged artifacts ---
+*.apk
+*.aab
+*.idsig
+*.dex
+*.ap_
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+
+# --- Python (repack tooling) ---
+__pycache__/
+*.pyc
+*.pyo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+

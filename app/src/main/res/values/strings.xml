@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">璐茜娅的魔方</string>
+    <string name="menu_title">功能</string>
+    <string name="feature_export_equip">导出装备表</string>
+    <string name="feature_export_equip_sub">导出当前背包装备到下载文件夹</string>
+    <string name="feature_export_card">导出装备图</string>
+    <string name="feature_export_card_sub">生成装备强度统计卡片到下载文件夹</string>
+    <string name="card_running">正在生成装备图…</string>
+    <string name="card_done">装备图已导出到下载文件夹</string>
+    <string name="feature_instakill_on">开启秒杀</string>
+    <string name="feature_instakill_off">关闭秒杀</string>
+    <string name="feature_instakill_sub">仅针对部分PVE</string>
+    <string name="instakill_on_ok">秒杀已开启（已觉醒角色攻击大幅提升）</string>
+    <string name="instakill_off_ok">秒杀已关闭，数值已还原</string>
+    <string name="instakill_fail">操作失败：%1$s</string>
+    <string name="running_suffix">%1$s（运行中）</string>
+    <string name="dev_suffix">%1$s（开发中）</string>
+    <string name="feature_autospeed">自动测速</string>
+    <string name="feature_autospeed_sub">敬请期待</string>
+    <string name="feature_autogear">自动配装</string>
+    <string name="feature_autogear_sub">敬请期待</string>
+    <string name="busy_running">功能运行中，请稍候…</string>
+    <string name="connect_connected">已连接到游戏进程</string>
+    <string name="connect_failed">未扫描到游戏，请确认游戏已启动</string>
+    <string name="connect_scanning">正在扫描游戏进程…</string>
+    <string name="export_running">正在导出装备…</string>
+    <string name="export_done">已导出 %1$d 件装备到下载文件夹</string>
+    <string name="export_empty">未读取到装备数据</string>
+    <string name="export_fail">导出失败：%1$s</string>
+    <string name="need_overlay_perm">需要悬浮窗权限才能运行</string>
+    <string name="not_connected_export">未连接到游戏，无法导出</string>
+    <string name="btn_menu">菜单</string>
+    <string name="btn_connect">连接</string>
+    <string name="btn_stop">停止</string>
+</resources>

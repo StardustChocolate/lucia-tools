@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色霖光科技风配色 -->
+    <color name="bg_deep">#0A0E1A</color>
+    <color name="bg_card">#141B2E</color>
+    <color name="bg_card_alpha">#E6141B2E</color>
+    <color name="lumen_cyan">#2DE2E6</color>
+    <color name="lumen_purple">#7B5CFF</color>
+    <color name="lumen_cyan_dim">#1A2DE2E6</color>
+    <color name="text_primary">#E8ECF4</color>
+    <color name="text_secondary">#7A8499</color>
+    <color name="danger_red">#FF4D5E</color>
+    <color name="scrim">#99000000</color>
+    <color name="bubble_bg">#CC141B2E</color>
+    <color name="divider">#26FFFFFF</color>
+</resources>

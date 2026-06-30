@@ -1,0 +1,76 @@
+
+<div align="center">
+
+# 璐茜娅的魔方 · LuciaTools
+
+<img src="./app/src/main/assets/avatars/H006.png" width="200" alt="Lucia">
+
+星陨计划安卓辅助工具 App，本地、轻量、强拓展✨
+
+[简体中文](./README.md) | [English](./README.en.md)
+
+[![License](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](./LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Android-3DDC84.svg?style=flat-square&logo=android&logoColor=white)](#)
+[![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF.svg?style=flat-square&logo=kotlin&logoColor=white)](#)
+[![API](https://img.shields.io/badge/API-24%2B-orange.svg?style=flat-square)](#)
+[![Arch](https://img.shields.io/badge/ABI-arm64--v8a-FA7343.svg?style=flat-square)](#)
+[![QQ Group](https://img.shields.io/badge/QQ%20Group-1032070842-5865F2.svg?style=flat-square)](https://qm.qq.com/q/YsvXane7Wq)
+
+> 本项目仅作技术研究，请勿用于任何破坏游戏公平性、商业化或其他违反游戏条款的用途。
+
+</div>
+
+## ✨功能
+
+- **导出装备表** — 读取背包全部装备，导出到下载文件夹（CSV/JSON）。
+- **导出装备图** — 读取背包全部装备，计算八维强度雷达图（Lp 范数评分）+ 顶配攻/生/防/抗/速求解，渲染成统计卡片（PNG）。
+- **秒杀** — 实时修改已觉醒角色觉醒攻击加成，仅在部分 PVE 中生效。
+- 自动测速 / 自动配装 —（开发中）。
+
+## 📦 开箱即用
+
+- 下载本项目apk和特殊的游戏apk
+- 安装 - 运行即可
+
+## ⚙️ 构建（开发者）
+
+需要：Android SDK（compileSdk 34 / build-tools）、NDK（CMake 3.22.1，编 arm64 native）、JDK 17。
+
+```bash
+# 1. 配置签名（App 必须和游戏同 keystore）
+cp keystore.properties.example keystore.properties
+#   编辑 keystore.properties 填入你自己的 keystore 路径和口令
+#   生成 keystore：
+keytool -genkeypair -v -keystore lucia.keystore -alias lucia \
+  -keyalg RSA -keysize 2048 -validity 36500 \
+  -storepass <PASS> -keypass <PASS> -dname "CN=lucia"
+
+# 2. 构建（缺 keystore.properties 时自动回退到 debug 签名）
+./gradlew :app:assembleDebug
+
+# 3. 安装
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+构建产物已配置为用 `keystore.properties` 指定的 keystore 自动签名，无需额外 zipalign/apksigner。
+
+## 📋 目录
+
+| 路径 | 说明 |
+|------|------|
+| `app/src/main/cpp/` | native 内存引擎（IL2CPP 解析、proc-mem 读写、装备枚举） |
+| `app/src/main/java/.../feature/` | 装备导出、强度评分、卡片渲染、顶配求解 |
+| `app/src/main/java/.../float/` | 悬浮窗 / 径向菜单 / 功能窗 UI |
+| `app/src/main/java/.../mem/` | JNI bridge |
+
+## 📊 评分模型
+
+每个维度先按"递减套"规则构造排列表，再用 **Lp 范数** 对列表求总评分（`norm = (Σ value^P)^(1/P)`，P 用于平衡峰值与数量的贡献，可调），映射到每维独立满分阈值得 0~10 分绘制雷达图。阈值在 [`StatScorer.kt`](app/src/main/java/com/openrubi/luciatools/feature/StatScorer.kt) 顶部常量，可自行校准。
+
+## 免责声明
+
+本项目为安卓技术学习产物，不会上传任何您的本地数据，若有侵权请联系项目作者删除相关内容。请勿用于任何破坏游戏公平性、商业化或其他违反游戏条款的用途。使用本项目造成的任何后果由使用者自负。
+
+## License
+
+[GNU General Public License v3.0](LICENSE)

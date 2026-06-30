@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Lucia" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/lumen_cyan</item>
+        <item name="colorSecondary">@color/lumen_purple</item>
+        <item name="android:colorBackground">@color/bg_deep</item>
+        <item name="android:windowBackground">@color/bg_deep</item>
+    </style>
+
+    <style name="Theme.Lucia.Transparent" parent="Theme.Lucia">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+</resources>

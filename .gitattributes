@@ -1,0 +1,12 @@
+# Normalize line endings
+* text=auto
+
+# Keep shell scripts LF
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Treat binaries as binary
+*.png binary
+*.keystore binary
+*.jar binary
+*.apk binary

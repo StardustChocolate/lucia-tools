@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 功能窗玻璃卡片:半透深色 + 圆角 + 霖光描边 + 渐变 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="135"
+        android:startColor="#F01A2238"
+        android:endColor="#F00F1424"
+        android:type="linear" />
+    <corners android:radius="20dp" />
+    <stroke android:width="1dp" android:color="#402DE2E6" />
+</shape>
