@@ -33,6 +33,12 @@ __pycache__/
 *.pyc
 *.pyo
 
+# --- 研究/验证产物（含 jwt 与账号 dump，绝不入库） ---
+tools/out/
+
+# --- 本地会话/记忆数据（属私有，不发布到公开仓库） ---
+.workbuddy/
+
 # --- OS ---
 .DS_Store
 Thumbs.db
