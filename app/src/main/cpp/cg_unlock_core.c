@@ -17,20 +17,48 @@
 #define SU_SNAP_MAGIC "STY1"
 #define SU_SNAP_VER 1u
 
+/*
+ * 字段语义（实测，见 README）：
+ *   0x28 Type + IntimacyLV   条件
+ *   0x30 PrevID              链
+ *   0x38 AwakenLV need       条件（觉醒星要求，造型条=6）
+ *   0x40 ChapterKey("3_1_2") 主线条件
+ *   0x48 ItemID              内容
+ *   0x60 DramaID ← 观看剧情播放ID，必须用目标角色自己的值
+ *   0x70 HighLight/IsSafe    状态
+ *
+ * 默认从模板复制解锁条件；+0x60 使用目标角色最后一个非空 DramaID，
+ * 让动态 CG 关联到该角色自己的最后一段通讯视频。
+ */
+#define SU_MASK_28 0x01u
+#define SU_MASK_30 0x02u
+#define SU_MASK_38 0x04u
+#define SU_MASK_40 0x08u
+#define SU_MASK_48 0x10u
+#define SU_MASK_60 0x20u
+#define SU_MASK_70 0x40u
+#define SU_MASK_ALL 0x7Fu
+/* 0x80：+0x60 改用目标角色自己的剧情 ID 兜底 */
+#define SU_MASK_DRAMA_SMART 0x80u
+/* 默认：复制解锁条件 + 目标角色自己的剧情 ID */
+#define SU_MASK_DEFAULT (SU_MASK_ALL | SU_MASK_DRAMA_SMART)
+
 static const uint64_t SU_OFFS[SU_NFIELDS] = {
     0x28, /* Type + IntimacyLV */
-    0x30, /* LineRewardID */
+    0x30, /* PrevID */
     0x38, /* AwakenLV need */
-    0x40, /* SceneID */
+    0x40, /* ChapterKey */
     0x48, /* ItemID */
-    0x60, /* DramaIDs */
+    0x60, /* DramaID */
     0x70  /* HighLight + IsSafeMode */
 };
 
 typedef struct {
     uint64_t obj;
     uint64_t orig[SU_NFIELDS];
+    uint64_t drama;      /* 实际要写入 +0x60 的值（智能继承后） */
     char     id[40];
+    char     role[24];
     int32_t  old_need;
 } su_target_t;
 
@@ -201,9 +229,43 @@ static int su_scan_cb(rm_handle_t *h, uint64_t obj, void *user) {
     memset(t, 0, sizeof(*t));
     t->obj = obj;
     snprintf(t->id, sizeof(t->id), "%s", id);
+    snprintf(t->role, sizeof(t->role), "%s", role);
     int32_t need = 0;
     if (rm_read(h, obj + 0x38, &need, 4) == 4) t->old_need = need;
     return 0;
+}
+
+/*
+ * +0x60 是"观看剧情"要播的剧情 ID（DramaID）。
+ * 造型/静态条目这一格是空的，空着就既没有按钮、也播不出东西；
+ * 直接抄模板（伊娥丝）的就会播成别人的剧情。
+ * 这里按角色分组，用该角色自己"最后一个非空"的剧情 ID 兜底
+ * —— 爱情通讯的动态 CG 关联的就是"通讯的最后一个 CG 视频"。
+ */
+static void su_resolve_drama(su_ctx_t *ctx, const uint64_t *donor_vals) {
+    (void) donor_vals;
+    for (int i = 0; i < ctx->n_targets; i++) {
+        su_target_t *t = &ctx->targets[i];
+        if (t->orig[5] != 0) {
+            t->drama = t->orig[5];
+            continue;
+        }
+
+        /* 条目原本没有剧情 ID：用同角色最后一个非空 DramaID 兜底。
+         * 爱情通讯动态 CG 关联的就是该角色通讯里的最后一个 CG 视频；
+         * 找不到则留空，不借用模板角色的剧情。 */
+        uint64_t fb = 0;
+        char best[40] = {0};
+        for (int j = 0; j < ctx->n_targets; j++) {
+            su_target_t *o = &ctx->targets[j];
+            if (!o->orig[5] || strcmp(o->role, t->role) != 0) continue;
+            if (strcmp(o->id, best) > 0) {
+                snprintf(best, sizeof(best), "%s", o->id);
+                fb = o->orig[5];
+            }
+        }
+        t->drama = fb;
+    }
 }
 
 static int su_open_snap(const char *path, int pid, int count, FILE **out) {
@@ -224,9 +286,19 @@ static int su_open_snap(const char *path, int pid, int count, FILE **out) {
     return 0;
 }
 
+static int cg_unlock_impl(pid_t pid, const char *rolesCsv, const char *donorId,
+                          unsigned int mask, int dry, const char *snapPath, char *out, int cap);
+
 int lt_cg_unlock(pid_t pid, const char *rolesCsv, const char *donorId,
                     int dry, const char *snapPath, char *out, int cap) {
+    return cg_unlock_impl(pid, rolesCsv, donorId, SU_MASK_DEFAULT, dry, snapPath, out, cap);
+}
+
+static int cg_unlock_impl(pid_t pid, const char *rolesCsv, const char *donorId,
+                          unsigned int mask, int dry, const char *snapPath, char *out, int cap) {
     if (pid <= 0 || !rolesCsv || !rolesCsv[0] || !donorId || !donorId[0]) return -1;
+    if (!mask) mask = SU_MASK_DEFAULT;
+    mask &= (SU_MASK_ALL | SU_MASK_DRAMA_SMART);
 
     rm_handle_t h;
     if (rm_open(&h, pid)) return -2;
@@ -276,6 +348,8 @@ int lt_cg_unlock(pid_t pid, const char *rolesCsv, const char *donorId,
         }
     }
 
+    su_resolve_drama(ctx, donor_vals);
+
     int wrote = 0;
     if (!dry) {
         if (snapPath && snapPath[0]) {
@@ -297,17 +371,20 @@ int lt_cg_unlock(pid_t pid, const char *rolesCsv, const char *donorId,
             su_target_t *t = &ctx->targets[i];
             if (t->obj == ctx->donor) continue;
             for (int k = 0; k < SU_NFIELDS; k++) {
-                if (rm_write(&h, t->obj + SU_OFFS[k], &donor_vals[k], 8) == 8) wrote++;
+                if (!(mask & (1u << k))) continue;
+                uint64_t v = (k == 5 && (mask & SU_MASK_DRAMA_SMART)) ? t->drama
+                                                                     : donor_vals[k];
+                if (rm_write(&h, t->obj + SU_OFFS[k], &v, 8) == 8) wrote++;
             }
         }
     }
 
     int L = snprintf(out, (size_t) cap,
                      "{\"mode\":\"cgUnlock\",\"roles\":\"%s\",\"donor\":\"%s\",\"dry\":%d,"
-                     "\"scanned\":%d,\"targets\":%d,\"roleCount\":%d,"
+                     "\"mask\":%u,\"scanned\":%d,\"targets\":%d,\"roleCount\":%d,"
                      "\"donorAddr\":\"0x%llx\",\"wrote\":%d,"
                      "\"snap\":\"%s\",\"items\":[",
-                     useRoles, donorId, dry ? 1 : 0, ctx->scanned, ctx->n_targets,
+                     useRoles, donorId, dry ? 1 : 0, mask, ctx->scanned, ctx->n_targets,
                      roleCount, (unsigned long long) ctx->donor, wrote,
                      snapPath ? snapPath : "");
 
@@ -334,6 +411,7 @@ int lt_cg_unlock(pid_t pid, const char *rolesCsv, const char *donorId,
     rm_close(&h);
     return L;
 }
+
 
 int lt_cg_restore(pid_t pid, const char *snapPath, char *out, int cap) {
     if (pid <= 0 || !snapPath || !snapPath[0]) return -1;
@@ -377,9 +455,8 @@ int lt_cg_restore(pid_t pid, const char *snapPath, char *out, int cap) {
     fclose(f);
     rm_close(&h);
 
-    int L = snprintf(out, (size_t) cap,
-                     "{\"mode\":\"cgRestore\",\"pid\":%d,\"snapCount\":%u,"
-                     "\"validObjs\":%d,\"restoredFields\":%d,\"snap\":\"%s\"}",
-                     (int) pid, count, ok_objs, restored, snapPath);
-    return L;
+    return snprintf(out, (size_t) cap,
+                    "{\"mode\":\"cgRestore\",\"pid\":%d,\"snapCount\":%u,"
+                    "\"validObjs\":%d,\"restoredFields\":%d,\"snap\":\"%s\"}",
+                    (int) pid, count, ok_objs, restored, snapPath);
 }

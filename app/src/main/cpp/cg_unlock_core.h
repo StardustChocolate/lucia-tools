@@ -12,7 +12,9 @@ extern "C" {
 
 int lt_cg_unlock(pid_t pid, const char *rolesCsv, const char *donorId,
                  int dry, const char *snapPath, char *out, int cap);
+
 int lt_cg_restore(pid_t pid, const char *snapPath, char *out, int cap);
+
 
 #ifdef __cplusplus
 }

@@ -23,7 +23,7 @@ Java_com_openrubi_luciatools_mem_NativeBridge_nativeCanConnect(JNIEnv *, jobject
 
 JNIEXPORT jstring JNICALL
 Java_com_openrubi_luciatools_mem_NativeBridge_nativeExportEquipment(JNIEnv *env, jobject, jint pid) {
-    int cap = 1 << 20; /* 1MB JSON 缂撳啿 */
+    int cap = 1 << 20;
     char *buf = (char *) malloc(cap);
     if (!buf) return env->NewStringUTF("{\"error\":\"oom\"}");
     int rc = ec_export_equipment((pid_t) pid, buf, cap);

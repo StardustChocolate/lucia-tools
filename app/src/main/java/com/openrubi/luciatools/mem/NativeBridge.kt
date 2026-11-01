@@ -29,8 +29,11 @@ object NativeBridge {
     external fun nativeCgUnlock(pid: Int, roles: String, donorId: String,
                                 dry: Int, snapPath: String): String
 
-    /** 按 nativeCgUnlock 的快照恢复。返回 JSON 字符串。 */
+
+    /** 按 nativeCgUnlock 的快照恢复。 */
     external fun nativeCgRestore(pid: Int, snapPath: String): String
+
+
 
     /** 综合：查 pid 并验证可连接 */
     fun scan(): Int {
