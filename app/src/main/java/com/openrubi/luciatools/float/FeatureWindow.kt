@@ -28,7 +28,10 @@ class FeatureWindow(
     private val isInstakillOn: () -> Boolean,
     private val isExportBusy: () -> Boolean,
     private val isCardBusy: () -> Boolean,
-    private val isInstakillBusy: () -> Boolean
+    private val isInstakillBusy: () -> Boolean,
+    private val onCgUnlockToggle: () -> Unit,
+    private val isCgUnlockOn: () -> Boolean,
+    private val isCgUnlockBusy: () -> Boolean
 ) {
     private val c = controller
     private lateinit var root: FrameLayout
@@ -105,6 +108,24 @@ class FeatureWindow(
                 ctx.getString(R.string.feature_instakill_sub),
                 enabled = !busy
             ) { onInstakillToggle() })
+        }
+
+        // 间隔
+        card.addView(android.view.View(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, c.dp(10))
+        })
+
+        // 功能项：未获得角色 CG 解锁(标题随状态变；运行中不可点)
+        run {
+            val busy = isCgUnlockBusy()
+            val onNow = isCgUnlockOn()
+            val base = ctx.getString(if (onNow) R.string.feature_cg_unlock_off else R.string.feature_cg_unlock_on)
+            card.addView(featureItem(
+                R.drawable.ic_cg_unlock,
+                if (busy) ctx.getString(R.string.running_suffix, base) else base,
+                ctx.getString(R.string.feature_cg_unlock_sub),
+                enabled = !busy
+            ) { onCgUnlockToggle() })
         }
 
         // 间隔

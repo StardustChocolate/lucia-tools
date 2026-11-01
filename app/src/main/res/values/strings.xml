@@ -14,6 +14,12 @@
     <string name="instakill_on_ok">秒杀已开启（已觉醒角色攻击大幅提升）</string>
     <string name="instakill_off_ok">秒杀已关闭，数值已还原</string>
     <string name="instakill_fail">操作失败：%1$s</string>
+    <string name="feature_cg_unlock_on">解锁未获得CG</string>
+    <string name="feature_cg_unlock_off">恢复未获得CG</string>
+    <string name="feature_cg_unlock_sub">把未获得角色图鉴条目伪装成主线条件，仅本机生效</string>
+    <string name="cg_unlock_on_ok">已处理 %1$d 个图鉴条目，重进爱情通讯图鉴生效</string>
+    <string name="cg_unlock_off_ok">图鉴条目已恢复</string>
+    <string name="cg_unlock_fail">操作失败：%1$s</string>
     <string name="running_suffix">%1$s（运行中）</string>
     <string name="dev_suffix">%1$s（开发中）</string>
     <string name="feature_autospeed">自动测速</string>

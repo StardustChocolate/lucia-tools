@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.openrubi.luciatools.mem.NativeBridge
+import java.io.File
 
 /**
  * 启动入口：申请悬浮窗权限 → 启动前台服务承载浮窗 → 自身 finish。
@@ -18,6 +20,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent?.hasExtra("cgUnlock") == true) {
+            runCgUnlock(
+                intent.getStringExtra("roles") ?: "@UNAcquired",
+                intent.getStringExtra("donor") ?: "H150_04",
+                intent.getIntExtra("dry", 0),
+                intent.getIntExtra("restore", 0)
+            )
+            return
+        }
         if (!hasOverlay()) {
             requestOverlay()
         } else {
@@ -44,6 +55,28 @@ class MainActivity : AppCompatActivity() {
             else Toast.makeText(this, R.string.need_overlay_perm, Toast.LENGTH_LONG).show()
             finish()
         }
+    }
+
+    /** 调试入口：解锁/恢复未获得角色 CG。 */
+    private fun runCgUnlock(roles: String, donor: String, dry: Int, restore: Int) {
+        Thread {
+            val sb = StringBuilder()
+            runCatching {
+                val pid = NativeBridge.scan()
+                val snap = File(getExternalFilesDir(null) ?: filesDir, "cg_unlock.snap").absolutePath
+                sb.append("pid=").append(pid).append('\n')
+                if (pid > 0) {
+                    sb.append(
+                        if (restore != 0) NativeBridge.nativeCgRestore(pid, snap)
+                        else NativeBridge.nativeCgUnlock(pid, roles, donor, dry, snap)
+                    ).append('\n')
+                }
+            }.onFailure { sb.append("EX ").append(it.toString()).append('\n') }
+            runCatching {
+                File(getExternalFilesDir(null) ?: filesDir, "cg_unlock.txt").writeText(sb.toString())
+            }
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }.start()
     }
 
     private fun launchService() {

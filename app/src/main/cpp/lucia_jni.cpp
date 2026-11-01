@@ -1,7 +1,9 @@
 #include <jni.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "equip_core.h"
+#include "cg_unlock_core.h"
 #include "rubimem.h"
 
 extern "C" {
@@ -68,6 +70,52 @@ Java_com_openrubi_luciatools_mem_NativeBridge_nativePrimeInstakill(JNIEnv *, job
 JNIEXPORT jint JNICALL
 Java_com_openrubi_luciatools_mem_NativeBridge_nativePrimeExport(JNIEnv *, jobject, jint pid) {
     return (jint) ec_prime_export((pid_t) pid);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_openrubi_luciatools_mem_NativeBridge_nativeCgUnlock(JNIEnv *env, jobject, jint pid,
+                                                             jstring roles, jstring donor,
+                                                             jint dry, jstring snap) {
+    const char *pr = roles ? env->GetStringUTFChars(roles, nullptr) : nullptr;
+    const char *pd = donor ? env->GetStringUTFChars(donor, nullptr) : nullptr;
+    const char *ps = snap ? env->GetStringUTFChars(snap, nullptr) : nullptr;
+    int cap = 32768;
+    char *buf = (char *) malloc(cap);
+    if (!buf) {
+        if (pr) env->ReleaseStringUTFChars(roles, pr);
+        if (pd) env->ReleaseStringUTFChars(donor, pd);
+        if (ps) env->ReleaseStringUTFChars(snap, ps);
+        return env->NewStringUTF("{\"err\":-99}");
+    }
+    buf[0] = 0;
+    int r = lt_cg_unlock((pid_t) pid, pr ? pr : "", pd ? pd : "H150_04",
+                         (int) dry, ps ? ps : "", buf, cap);
+    if (r < 0) snprintf(buf, (size_t) cap, "{\"err\":%d}", r);
+    jstring out = env->NewStringUTF(buf);
+    free(buf);
+    if (pr) env->ReleaseStringUTFChars(roles, pr);
+    if (pd) env->ReleaseStringUTFChars(donor, pd);
+    if (ps) env->ReleaseStringUTFChars(snap, ps);
+    return out;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_openrubi_luciatools_mem_NativeBridge_nativeCgRestore(JNIEnv *env, jobject, jint pid,
+                                                              jstring snap) {
+    const char *ps = snap ? env->GetStringUTFChars(snap, nullptr) : nullptr;
+    int cap = 4096;
+    char *buf = (char *) malloc(cap);
+    if (!buf) {
+        if (ps) env->ReleaseStringUTFChars(snap, ps);
+        return env->NewStringUTF("{\"err\":-99}");
+    }
+    buf[0] = 0;
+    int r = lt_cg_restore((pid_t) pid, ps ? ps : "", buf, cap);
+    if (r < 0) snprintf(buf, (size_t) cap, "{\"err\":%d}", r);
+    jstring out = env->NewStringUTF(buf);
+    free(buf);
+    if (ps) env->ReleaseStringUTFChars(snap, ps);
+    return out;
 }
 
 } // extern "C"

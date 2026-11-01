@@ -1,6 +1,6 @@
 package com.openrubi.luciatools.mem
 
-/** JNI 桥：调用 liblucia.so 的内存读取/装备导出。 */
+/** JNI 桥：调用 liblucia.so 的内存读取 / 装备导出 / CG 解锁。 */
 object NativeBridge {
     init {
         System.loadLibrary("lucia")
@@ -9,26 +9,28 @@ object NativeBridge {
     /** 目标游戏包名（与游戏同 sharedUserId 同 uid 运行，故可读其内存） */
     const val GAME_PACKAGE = "com.nerversoft.ark.recode"
 
-    /** 按包名查游戏 pid，0 表示未找到 */
     external fun nativeFindPid(pkg: String): Int
-
-    /** 是否能读到游戏内存（读 il2cpp ELF 头验证） */
     external fun nativeCanConnect(pid: Int): Boolean
 
-    /** 导出装备为 JSON 字符串；失败返回 {"error":n} */
     external fun nativeExportEquipment(pid: Int): String
-
-    /** 导出登录账号信息 JSON：{nickname,cuid,lv,leaderSid,found} */
     external fun nativeExportAccount(pid: Int): String
 
-    /** 秒杀开关：enable=true 觉醒攻击增量改大, false 还原。返回修改条目数, <0 出错。 */
     external fun nativeSetInstakill(pid: Int, enable: Boolean): Int
-
-    /** 预热：后台扫描填充秒杀地址缓存(不修改)，使后续开关瞬间完成。返回条目数, <0 出错。 */
     external fun nativePrimeInstakill(pid: Int): Int
-
-    /** 预热：后台填充导出用 klass 缓存(装备表/装备图共用)。返回 1 成功 0 失败。 */
     external fun nativePrimeExport(pid: Int): Int
+
+    /**
+     * 解锁未获得角色的图鉴 CG。
+     * roles = 角色 ID 列表（如 "H133,H160"）；传 "@UNAcquired" 表示全部未获得角色。
+     * donorId = 主线条件模板条目，默认 "H150_04"。
+     * dry != 0 只统计不写。snapPath 为快照路径。
+     * 返回 JSON 字符串。
+     */
+    external fun nativeCgUnlock(pid: Int, roles: String, donorId: String,
+                                dry: Int, snapPath: String): String
+
+    /** 按 nativeCgUnlock 的快照恢复。返回 JSON 字符串。 */
+    external fun nativeCgRestore(pid: Int, snapPath: String): String
 
     /** 综合：查 pid 并验证可连接 */
     fun scan(): Int {

@@ -161,7 +161,10 @@ class FloatController(private val ctx: Context) {
             isInstakillOn = { instakillOn },
             isExportBusy = { exportBusy },
             isCardBusy = { cardBusy },
-            isInstakillBusy = { instakillBusy }
+            isInstakillBusy = { instakillBusy },
+            onCgUnlockToggle = { runCgUnlockToggle() },
+            isCgUnlockOn = { cgUnlockOn },
+            isCgUnlockBusy = { cgUnlockBusy }
         ).also { it.show() }
     }
 
@@ -169,6 +172,7 @@ class FloatController(private val ctx: Context) {
     @Volatile private var exportBusy = false
     @Volatile private var cardBusy = false
     @Volatile private var instakillBusy = false
+    @Volatile private var cgUnlockBusy = false
 
     /**
      * 确保拿到当前活的游戏 pid(处理游戏重启导致 pid 变化的情况)。
@@ -208,6 +212,53 @@ class FloatController(private val ctx: Context) {
             main.post { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() }
         }.start()
     }
+
+    // ---- 未获得角色 CG 解锁 ----
+    @Volatile private var cgUnlockOn = false
+    private val cgSnapPath by lazy {
+        java.io.File(ctx.getExternalFilesDir(null) ?: ctx.filesDir, "cg_unlock.snap").absolutePath
+    }
+
+    private fun runCgUnlockToggle() {
+        featureWindow?.dismiss(); featureWindow = null
+        if (cgUnlockBusy) { toast(R.string.busy_running); return }
+        val target = !cgUnlockOn
+        cgUnlockBusy = true
+        Thread {
+            val msg: String = try {
+                val pid = ensureLivePid()
+                if (pid <= 0) ctx.getString(R.string.not_connected_export)
+                else {
+                    if (target) {
+                        val json = NativeBridge.nativeCgUnlock(pid, "@UNAcquired", "H150_04", 0, cgSnapPath)
+                        if (json.contains("\"err\"")) {
+                            ctx.getString(R.string.cg_unlock_fail, json)
+                        } else {
+                            cgUnlockOn = true
+                            ctx.getString(R.string.cg_unlock_on_ok, jsonInt(json, "targets"))
+                        }
+                    } else {
+                        val json = NativeBridge.nativeCgRestore(pid, cgSnapPath)
+                        if (json.contains("\"err\"")) {
+                            ctx.getString(R.string.cg_unlock_fail, json)
+                        } else {
+                            cgUnlockOn = false
+                            ctx.getString(R.string.cg_unlock_off_ok)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                ctx.getString(R.string.cg_unlock_fail, e.message ?: "未知错误")
+            } finally {
+                cgUnlockBusy = false
+            }
+            main.post { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() }
+        }.start()
+    }
+
+    private fun jsonInt(json: String, key: String): Int =
+        Regex("\"" + Regex.escape(key) + "\"\\s*:\\s*(-?\\d+)")
+            .find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 0
 
     // ---- 子按钮②：连接 ----
     private fun onConnectClicked() {

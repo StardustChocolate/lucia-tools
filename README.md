@@ -7,8 +7,6 @@
 
 星陨计划安卓辅助工具 App，本地、轻量、强拓展✨
 
-[简体中文](./README.md) | [English](./README.en.md)
-
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](./LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84.svg?style=flat-square&logo=android&logoColor=white)](#)
 [![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF.svg?style=flat-square&logo=kotlin&logoColor=white)](#)
@@ -25,7 +23,45 @@
 - **导出装备表** — 读取背包全部装备，导出到下载文件夹（CSV/JSON）。
 - **导出装备图** — 读取背包全部装备，计算八维强度雷达图（Lp 范数评分）+ 顶配攻/生/防/抗/速求解，渲染成统计卡片（PNG）。
 - **秒杀** — 实时修改已觉醒角色觉醒攻击加成，仅在部分 PVE 中生效。
+- **解锁未获得角色 CG** — 将未获得角色的图鉴条目伪装成主线 CG 条件，让未拥有角色也能查看并播放爱情通讯 CG。仅本机内存修改，重启游戏自动恢复。
 - 自动测速 / 自动配装 —（开发中）。
+
+## 🖼️ 解锁未获得角色 CG
+
+### 使用方式
+
+1. 启动游戏，进入 **爱情通讯 → 图鉴**，先打开一次，让未获得角色列表加载。
+2. 打开 LuciaTools 悬浮窗 → **菜单 → 解锁未获得CG**。
+3. 退出图鉴后重新进入，未获得角色的 CG 会显示 `NEW` 角标，可直接点击播放。
+4. 再次点击 **恢复未获得CG**，按快照还原所有被修改的图鉴条目。
+
+功能只修改 `RoleCollectionStaticData` 的解锁条件字段，保留目标角色自己的 `ID / RoleID / Prefab / PrefabIcon / RoleMotions / ActivityIDs`，因此播放的是目标角色自己的 CG。
+
+### 边界与注意事项
+
+- 仅修改当前游戏进程内存，**重启游戏即恢复**，不会写入账号数据或服务器。
+- 修改后未获得角色的图鉴会大量出现 `NEW` 角标，属于正常现象。
+- 默认使用 `H150_04` 作为主线条件模板；游戏版本更新后如模板失效，可通过 ADB 参数替换 donor。
+- 需要和游戏使用同一签名、同一 `sharedUserId` 的特殊游戏包，否则无法读取游戏内存。
+- 请勿在修改后参与 PVP、公会战等可能被服务器复算的玩法。
+
+### ADB 调试
+
+```bash
+# 预览：只统计，不写内存
+adb shell am start -n com.openrubi.luciatools/.MainActivity --ez cgUnlock true --es roles @UNAcquired --ei dry 1
+
+# 解锁全部未获得角色
+adb shell am start -n com.openrubi.luciatools/.MainActivity --ez cgUnlock true --es roles @UNAcquired --es donor H150_04 --ei dry 0
+
+# 只解锁指定角色
+adb shell am start -n com.openrubi.luciatools/.MainActivity --ez cgUnlock true --es roles H133,H160 --es donor H150_04 --ei dry 0
+
+# 按快照恢复
+adb shell am start -n com.openrubi.luciatools/.MainActivity --ez cgUnlock true --ei restore 1
+```
+
+调试结果写入 `Android/data/com.openrubi.luciatools/files/cg_unlock.txt` 和 `cg_unlock.snap`。
 
 ## 📦 开箱即用
 
@@ -45,11 +81,11 @@ keytool -genkeypair -v -keystore lucia.keystore -alias lucia \
   -keyalg RSA -keysize 2048 -validity 36500 \
   -storepass <PASS> -keypass <PASS> -dname "CN=lucia"
 
-# 2. 构建（缺 keystore.properties 时自动回退到 debug 签名）
-./gradlew :app:assembleDebug
+# 2. 构建 release 并校验签名
+bash tools/build_signed.sh
 
 # 3. 安装
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r dist/LuciaTools-lovetalk-release.apk
 ```
 
 构建产物已配置为用 `keystore.properties` 指定的 keystore 自动签名，无需额外 zipalign/apksigner。
@@ -58,7 +94,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 | 路径 | 说明 |
 |------|------|
-| `app/src/main/cpp/` | native 内存引擎（IL2CPP 解析、proc-mem 读写、装备枚举） |
+| `app/src/main/cpp/` | native 内存引擎（IL2CPP 扫描、proc-mem 读写、装备枚举、CG 解锁） |
+| `app/src/main/cpp/cg_unlock_core.c` | 未获得角色 CG 解锁与快照恢复 |
 | `app/src/main/java/.../feature/` | 装备导出、强度评分、卡片渲染、顶配求解 |
 | `app/src/main/java/.../float/` | 悬浮窗 / 径向菜单 / 功能窗 UI |
 | `app/src/main/java/.../mem/` | JNI bridge |
