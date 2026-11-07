@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "equip_core.h"
 #include "cg_unlock_core.h"
+#include "battle_core.h"
+#include "probe_core.h"
 #include "rubimem.h"
 
 extern "C" {
@@ -116,6 +118,65 @@ Java_com_openrubi_luciatools_mem_NativeBridge_nativeCgRestore(JNIEnv *env, jobje
     free(buf);
     if (ps) env->ReleaseStringUTFChars(snap, ps);
     return out;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_openrubi_luciatools_mem_NativeBridge_nativeProbe(JNIEnv *env, jobject, jint pid,
+                                                          jstring jcmd, jstring ja1,
+                                                          jstring ja2, jint n) {
+    const char *cmd = jcmd ? env->GetStringUTFChars(jcmd, nullptr) : nullptr;
+    const char *a1 = ja1 ? env->GetStringUTFChars(ja1, nullptr) : nullptr;
+    const char *a2 = ja2 ? env->GetStringUTFChars(ja2, nullptr) : nullptr;
+    int cap = 256 * 1024;
+    char *buf = (char *) calloc(1, (size_t) cap);
+    if (!buf) {
+        if (cmd) env->ReleaseStringUTFChars(jcmd, cmd);
+        if (a1) env->ReleaseStringUTFChars(ja1, a1);
+        if (a2) env->ReleaseStringUTFChars(ja2, a2);
+        return env->NewStringUTF("oom");
+    }
+    int r = lt_probe((pid_t) pid, cmd ? cmd : "", a1 ? a1 : "", a2 ? a2 : "",
+                     (int) n, buf, cap);
+    if (r < 0) snprintf(buf, (size_t) cap, "probe err=%d", r);
+    jstring out = env->NewStringUTF(buf);
+    free(buf);
+    if (cmd) env->ReleaseStringUTFChars(jcmd, cmd);
+    if (a1) env->ReleaseStringUTFChars(ja1, a1);
+    if (a2) env->ReleaseStringUTFChars(ja2, a2);
+    return out;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_openrubi_luciatools_mem_NativeBridge_nativeSetRoleSpeed(JNIEnv *, jobject, jint pid,
+                                                                 jfloat speed, jboolean enable) {
+    return (jint) lt_role_speed_set((pid_t) pid, (float) speed, enable ? 1 : 0);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_openrubi_luciatools_mem_NativeBridge_nativeSetRepeatCount(JNIEnv *, jobject, jint pid,
+                                                                   jint count, jboolean enable) {
+    return (jint) lt_repeat_limit_set((pid_t) pid, (int) count, enable ? 1 : 0);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_openrubi_luciatools_mem_NativeBridge_nativeSetBattleSpeed(JNIEnv *, jobject, jint pid,
+                                                                   jfloat mult, jboolean enable) {
+    return (jint) lt_battle_speed_set((pid_t) pid, (float) mult, enable ? 1 : 0);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_openrubi_luciatools_mem_NativeBridge_nativeRefreshSpeed(JNIEnv *, jobject) {
+    return (jint) lt_role_speed_refresh();
+}
+
+JNIEXPORT void JNICALL
+Java_com_openrubi_luciatools_mem_NativeBridge_nativeEnsureKeeper(JNIEnv *, jobject) {
+    lt_battle_ensure_keeper();
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_openrubi_luciatools_mem_NativeBridge_nativeBattleTickWrites(JNIEnv *, jobject) {
+    return (jlong) lt_battle_tick_writes();
 }
 
 } // extern "C"

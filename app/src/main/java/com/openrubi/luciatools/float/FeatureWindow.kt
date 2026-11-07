@@ -31,7 +31,16 @@ class FeatureWindow(
     private val isInstakillBusy: () -> Boolean,
     private val onCgUnlockToggle: () -> Unit,
     private val isCgUnlockOn: () -> Boolean,
-    private val isCgUnlockBusy: () -> Boolean
+    private val isCgUnlockBusy: () -> Boolean,
+    private val onSpeed280Toggle: () -> Unit,
+    private val isSpeed280On: () -> Boolean,
+    private val isSpeed280Busy: () -> Boolean,
+    private val onBattleSpeedToggle: () -> Unit,
+    private val isBattleSpeedOn: () -> Boolean,
+    private val isBattleSpeedBusy: () -> Boolean,
+    private val onRepeat999: () -> Unit,
+    private val isRepeat999On: () -> Boolean,
+    private val isRepeat999Busy: () -> Boolean
 ) {
     private val c = controller
     private lateinit var root: FrameLayout
@@ -115,6 +124,59 @@ class FeatureWindow(
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, c.dp(10))
         })
 
+        // 功能项：我方速度 280
+        run {
+            val busy = isSpeed280Busy()
+            val onNow = isSpeed280On()
+            val base = ctx.getString(if (onNow) R.string.feature_speed280_off else R.string.feature_speed280_on)
+            card.addView(featureItem(
+                R.drawable.ic_autospeed,
+                if (busy) ctx.getString(R.string.running_suffix, base) else base,
+                ctx.getString(R.string.feature_speed280_sub),
+                enabled = !busy
+            ) { onSpeed280Toggle() })
+        }
+
+        card.addView(android.view.View(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, c.dp(10))
+        })
+
+        // 功能项：最大重复战斗次数 999
+        run {
+            val busy = isRepeat999Busy()
+            val on = isRepeat999On()
+            val base = ctx.getString(
+                if (on) R.string.feature_repeat999_off else R.string.feature_repeat999_on
+            )
+            card.addView(featureItem(
+                R.drawable.ic_autospeed,
+                if (busy) ctx.getString(R.string.running_suffix, base) else base,
+                ctx.getString(R.string.feature_repeat999_sub),
+                enabled = !busy
+            ) { onRepeat999() })
+        }
+
+        card.addView(android.view.View(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, c.dp(10))
+        })
+
+        // 功能项：9 倍速
+        run {
+            val busy = isBattleSpeedBusy()
+            val onNow = isBattleSpeedOn()
+            val base = ctx.getString(if (onNow) R.string.feature_battle_speed_off else R.string.feature_battle_speed_on)
+            card.addView(featureItem(
+                R.drawable.ic_speed9,
+                if (busy) ctx.getString(R.string.running_suffix, base) else base,
+                ctx.getString(R.string.feature_battle_speed_sub),
+                enabled = !busy
+            ) { onBattleSpeedToggle() })
+        }
+
+        card.addView(android.view.View(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, c.dp(10))
+        })
+
         // 功能项：未获得角色 CG 解锁(标题随状态变；运行中不可点)
         run {
             val busy = isCgUnlockBusy()
@@ -133,31 +195,17 @@ class FeatureWindow(
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, c.dp(10))
         })
 
-        // 功能项：自动测速(开发中占位，不可点)
-        card.addView(featureItem(
-            R.drawable.ic_autospeed,
-            ctx.getString(R.string.dev_suffix, ctx.getString(R.string.feature_autospeed)),
-            ctx.getString(R.string.feature_autospeed_sub),
-            enabled = false
-        ) { })
-
-        // 间隔
-        card.addView(android.view.View(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, c.dp(10))
-        })
-
-        // 功能项：自动配装(开发中占位，不可点)
-        card.addView(featureItem(
-            R.drawable.ic_autogear,
-            ctx.getString(R.string.dev_suffix, ctx.getString(R.string.feature_autogear)),
-            ctx.getString(R.string.feature_autogear_sub),
-            enabled = false
-        ) { })
-
+        // 条目多于一屏时用 ScrollView 承载，避免底部被裁掉
+        val screenH = ctx.resources.displayMetrics.heightPixels
+        val scroll = android.widget.ScrollView(ctx).apply {
+            isVerticalScrollBarEnabled = false
+            addView(card, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
         val cardLp = FrameLayout.LayoutParams(
-            c.dp(300), FrameLayout.LayoutParams.WRAP_CONTENT
+            c.dp(300), (screenH * 0.86f).toInt()
         ).apply { gravity = Gravity.CENTER }
-        root.addView(card, cardLp)
+        root.addView(scroll, cardLp)
 
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -168,6 +216,18 @@ class FeatureWindow(
         ).apply { gravity = Gravity.TOP or Gravity.START }
 
         wm.addView(root, params)
+
+        // 内容不足一屏时把滚动区收缩到内容高度，卡片才居中而不贴顶
+        card.post {
+            val maxH = (screenH * 0.86f).toInt()
+            if (card.height in 1 until maxH) {
+                (scroll.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                    lp.height = card.height + c.dp(8)
+                    scroll.layoutParams = lp
+                    runCatching { wm.updateViewLayout(root, params) }
+                }
+            }
+        }
 
         // 入场动画
         card.scaleX = 0.85f; card.scaleY = 0.85f; card.alpha = 0f
@@ -182,7 +242,7 @@ class FeatureWindow(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = ctx.getDrawable(R.drawable.bg_feature_item)
-            val p = c.dp(14)
+            val p = c.dp(10)
             setPadding(p, p, p, p)
             alpha = if (enabled) 1f else 0.4f       // 运行中变灰
             isEnabled = enabled
@@ -191,7 +251,7 @@ class FeatureWindow(
         }
         row.addView(ImageView(ctx).apply {
             setImageResource(icon)
-            layoutParams = LinearLayout.LayoutParams(c.dp(36), c.dp(36))
+            layoutParams = LinearLayout.LayoutParams(c.dp(30), c.dp(30))
         })
         val texts = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -203,11 +263,13 @@ class FeatureWindow(
             text = title
             setTextColor(Color.parseColor("#E8ECF4")); textSize = 15f
         })
-        texts.addView(TextView(ctx).apply {
-            text = sub
-            setTextColor(Color.parseColor("#7A8499")); textSize = 12f
-            setPadding(0, c.dp(2), 0, 0)
-        })
+        if (sub.isNotEmpty()) {
+            texts.addView(TextView(ctx).apply {
+                text = sub
+                setTextColor(Color.parseColor("#7A8499")); textSize = 12f
+                setPadding(0, c.dp(2), 0, 0)
+            })
+        }
         row.addView(texts)
         return row
     }

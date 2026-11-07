@@ -16,6 +16,7 @@ class FloatService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        runCatching { com.openrubi.luciatools.mem.NativeBridge.nativeEnsureKeeper() }
         startForegroundCompat()
         controller = FloatController(this).also { it.show() }
     }

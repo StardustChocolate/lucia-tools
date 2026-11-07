@@ -33,6 +33,27 @@ object NativeBridge {
     /** 按 nativeCgUnlock 的快照恢复。 */
     external fun nativeCgRestore(pid: Int, snapPath: String): String
 
+    /** 战斗内把我方角色速度设为 speed（enable=1）/ 还原（0）。返回角色数，<0 出错。 */
+    external fun nativeSetRoleSpeed(pid: Int, speed: Float, enable: Boolean): Int
+
+    /** 放开「重复战斗次数上限」（改 VIP 配置表的 AutoBattleCount）。返回处理行数，<0 出错。 */
+    external fun nativeSetRepeatCount(pid: Int, count: Int, enable: Boolean): Int
+
+    /** 累计成功的行动条加速写入次数。 */
+    external fun nativeBattleTickWrites(): Long
+
+    /** 启动常驻压制线程（服务启动时调用一次）。 */
+    external fun nativeEnsureKeeper()
+
+    /** 定时重放速度写入（压制游戏重算），返回写入地址数。 */
+    external fun nativeRefreshSpeed(): Int
+
+    /** 战斗倍速：mult=9 开启，enable=0 还原。 */
+    external fun nativeSetBattleSpeed(pid: Int, mult: Float, enable: Boolean): Int
+
+    /** 运行时结构探针（调试用）：cmd = cls / obj / dict。 */
+    external fun nativeProbe(pid: Int, cmd: String, a1: String, a2: String, n: Int): String
+
 
 
     /** 综合：查 pid 并验证可连接 */

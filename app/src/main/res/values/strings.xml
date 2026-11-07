@@ -14,9 +14,9 @@
     <string name="instakill_on_ok">秒杀已开启（已觉醒角色攻击大幅提升）</string>
     <string name="instakill_off_ok">秒杀已关闭，数值已还原</string>
     <string name="instakill_fail">操作失败：%1$s</string>
-    <string name="feature_cg_unlock_on">解锁未获得CG</string>
-    <string name="feature_cg_unlock_off">恢复未获得CG</string>
-    <string name="feature_cg_unlock_sub">把未获得角色图鉴条目伪装成主线条件，仅本机生效</string>
+    <string name="feature_cg_unlock_on">解锁CG</string>
+    <string name="feature_cg_unlock_off">恢复 CG</string>
+    <string name="feature_cg_unlock_sub"></string>
     <string name="cg_unlock_on_ok">已处理 %1$d 个图鉴条目，重进爱情通讯图鉴生效</string>
     <string name="cg_unlock_off_ok">图鉴条目已恢复</string>
     <string name="cg_unlock_fail">操作失败：%1$s</string>
@@ -39,4 +39,24 @@
     <string name="btn_menu">菜单</string>
     <string name="btn_connect">连接</string>
     <string name="btn_stop">停止</string>
+    <string name="feature_speed280_on">角色高速</string>
+    <string name="feature_speed280_off">关闭角色高速</string>
+    <string name="feature_speed280_sub"></string>
+    <string name="speed280_on_ok">已设置 %1$d 处速度为 280（角色面板可见，切角色刷新）</string>
+    <string name="speed280_off_ok">已还原 %1$d 名角色速度</string>
+    <string name="speed280_fail">操作失败：%1$s</string>
+    <string name="feature_repeat999_on">最大重复战斗次数 999</string>
+    <string name="feature_repeat999_off">还原重复战斗次数上限</string>
+    <string name="feature_repeat999_sub"></string>
+    <string name="repeat999_ok">已放开 %1$d 行次数上限为 999，回队伍编成界面把滑块拖到最右</string>
+    <string name="repeat999_off_ok">已还原 %1$d 行次数上限</string>
+    <string name="repeat999_fail">设置失败：code=%1$d</string>
+
+    <string name="feature_battle_speed_on">战斗9倍速</string>
+    <string name="feature_battle_speed_off">关闭战斗9倍速</string>
+    <string name="feature_battle_speed_sub">开启后战斗实际速度 ×9（右上角档位显示不变）</string>
+    <string name="battle_speed_on_ok">已开启 %1$s 倍战斗加速</string>
+    <string name="battle_speed_unavailable">9倍速开启失败，请确认游戏版本或重新连接后重试</string>
+    <string name="battle_speed_off_ok">已恢复正常速度</string>
+    <string name="need_in_battle">未检测到战斗，请进入战斗后再试</string>
 </resources>

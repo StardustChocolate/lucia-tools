@@ -328,7 +328,14 @@ static int ec_collect_instakill(pid_t pid){
     rm_handle_t h; if(rm_open(&h,pid))return -1;
     static rm_map_t maps[8192]; int n=rm_read_maps(pid,maps,8192);
     if(n<=0){rm_close(&h);return -2;}
-    uint64_t klass=ec_find_klass(&h,maps,n,"RoleAwakenStaticData","Game");
+    /*
+     * 类定位必须走元数据（ms_find_klass2）：ms_find_klass 靠"类名字符串
+     * 恰好等于某份命中的 name 指针"来匹配，同一份类名在内存里有上百份，
+     * 经常匹配到结构相似但不是 Il2CppClass 的位置，导致 -3（找不到）或
+     * 找到假类后扫不到条目（-4）。元数据 TypeDef 是唯一事实源。
+     */
+    uint64_t klass = ms_find_klass2(&h,maps,n,"RoleAwakenStaticData","Game",NULL);
+    if(!klass) klass = ms_find_klass(&h,maps,n,"RoleAwakenStaticData","Game");
     if(!klass){rm_close(&h);return -3;}
     static unsigned char buf[EC_BUF]; int cnt=0;
     for(int i=0;i<n&&cnt<IK_MAX;i++){
@@ -345,6 +352,8 @@ static int ec_collect_instakill(pid_t pid){
                 if(!ok||lv<1||lv>10)continue;
                 uint64_t cm=0; rm_read_ptr(&h,ps+0x18,&cm);
                 uint64_t va=ec_clone_attack_addr(&h,cm); if(!va)continue;
+                int dup=0; for(int k=0;k<cnt;k++) if(ik_addr[k]==va){dup=1;break;}
+                if(dup)continue;
                 ik_addr[cnt]=va; ik_lv[cnt]=(int8_t)lv; cnt++;
             }
         }

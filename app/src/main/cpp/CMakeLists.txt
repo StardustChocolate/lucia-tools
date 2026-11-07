@@ -6,6 +6,8 @@ add_library(lucia SHARED
     equip_core.c
     mem_scan.c
     cg_unlock_core.c
+    battle_core.c
+    probe_core.c
     rubimem.c
 )
 
