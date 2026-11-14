@@ -4,6 +4,10 @@ project(lucia)
 add_library(lucia SHARED
     lucia_jni.cpp
     equip_core.c
+    mem_scan.c
+    cg_unlock_core.c
+    battle_core.c
+    probe_core.c
     rubimem.c
 )
 

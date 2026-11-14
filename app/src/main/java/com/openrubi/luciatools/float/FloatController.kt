@@ -161,7 +161,19 @@ class FloatController(private val ctx: Context) {
             isInstakillOn = { instakillOn },
             isExportBusy = { exportBusy },
             isCardBusy = { cardBusy },
-            isInstakillBusy = { instakillBusy }
+            isInstakillBusy = { instakillBusy },
+            onCgUnlockToggle = { runCgUnlockToggle() },
+            isCgUnlockOn = { cgUnlockOn },
+            isCgUnlockBusy = { cgUnlockBusy },
+            onSpeed280Toggle = { runSpeed280Toggle() },
+            isSpeed280On = { speed280On },
+            isSpeed280Busy = { speed280Busy },
+            onBattleSpeedToggle = { runBattleSpeedToggle() },
+            isBattleSpeedOn = { battleSpeedOn },
+            isBattleSpeedBusy = { battleSpeedBusy },
+            onRepeat999 = { runRepeat999() },
+            isRepeat999On = { repeat999On },
+            isRepeat999Busy = { repeat999Busy }
         ).also { it.show() }
     }
 
@@ -169,6 +181,11 @@ class FloatController(private val ctx: Context) {
     @Volatile private var exportBusy = false
     @Volatile private var cardBusy = false
     @Volatile private var instakillBusy = false
+    @Volatile private var cgUnlockBusy = false
+    @Volatile private var speed280Busy = false
+    @Volatile private var battleSpeedBusy = false
+    @Volatile private var repeat999Busy = false
+    @Volatile private var repeat999On = false
 
     /**
      * 确保拿到当前活的游戏 pid(处理游戏重启导致 pid 变化的情况)。
@@ -208,6 +225,149 @@ class FloatController(private val ctx: Context) {
             main.post { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() }
         }.start()
     }
+
+
+    // ---- 我方速度设为 280 ----
+    @Volatile private var speed280On = false
+    private fun runSpeed280Toggle() {
+        featureWindow?.dismiss(); featureWindow = null
+        if (speed280Busy) { toast(R.string.busy_running); return }
+        val target = !speed280On
+        speed280Busy = true
+        Thread {
+            val msg: String = try {
+                val pid = ensureLivePid()
+                if (pid <= 0) ctx.getString(R.string.not_connected_export)
+                else {
+                    val cnt = NativeBridge.nativeSetRoleSpeed(pid, 280f, target)
+                    when {
+                        cnt < 0 -> ctx.getString(R.string.speed280_fail,
+                            if (cnt == -4) ctx.getString(R.string.need_in_battle) else "code=$cnt")
+                        else -> {
+                            speed280On = target
+                            ctx.getString(
+                                if (target) R.string.speed280_on_ok else R.string.speed280_off_ok, cnt)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                ctx.getString(R.string.speed280_fail, e.message ?: "未知错误")
+            } finally {
+                speed280Busy = false
+            }
+            main.post { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() }
+        }.start()
+    }
+
+    // ---- 9 倍速 ----
+    @Volatile private var battleSpeedOn = false
+    private fun runBattleSpeedToggle() {
+        featureWindow?.dismiss(); featureWindow = null
+        if (battleSpeedBusy) { toast(R.string.busy_running); return }
+        val target = !battleSpeedOn
+        battleSpeedBusy = true
+        Thread {
+            val msg: String = try {
+                val pid = ensureLivePid()
+                if (pid <= 0) ctx.getString(R.string.not_connected_export)
+                else {
+                    val cnt = NativeBridge.nativeSetBattleSpeed(pid, 9f, target)
+                    when {
+                        cnt == -5 -> ctx.getString(R.string.battle_speed_unavailable)
+                        cnt < 0 -> ctx.getString(R.string.speed280_fail, "code=$cnt")
+                        else -> {
+                            battleSpeedOn = target
+                            ctx.getString(
+                                if (target) R.string.battle_speed_on_ok else R.string.battle_speed_off_ok,
+                                if (target) "9" else "")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                ctx.getString(R.string.speed280_fail, e.message ?: "未知错误")
+            } finally {
+                battleSpeedBusy = false
+            }
+            main.post { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() }
+        }.start()
+    }
+
+    // ---- 最大重复战斗次数 999（放开 VIP 配置表里的次数上限） ----
+    private fun runRepeat999() {
+        featureWindow?.dismiss(); featureWindow = null
+        if (repeat999Busy) { toast(R.string.busy_running); return }
+        repeat999Busy = true
+        val target = !repeat999On
+        Thread {
+            val msg: String = try {
+                val pid = ensureLivePid()
+                if (pid <= 0) ctx.getString(R.string.not_connected_export)
+                else {
+                    val cnt = NativeBridge.nativeSetRepeatCount(pid, 999, target)
+                    if (cnt < 0) ctx.getString(R.string.repeat999_fail, cnt)
+                    else if (target) {
+                        repeat999On = true
+                        ctx.getString(R.string.repeat999_ok, cnt)
+                    } else {
+                        repeat999On = false
+                        ctx.getString(R.string.repeat999_off_ok, cnt)
+                    }
+                }
+            } catch (e: Exception) {
+                ctx.getString(R.string.repeat999_fail, -1)
+            } finally {
+                repeat999Busy = false
+            }
+            main.post { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() }
+        }.start()
+    }
+
+    // ---- 未获得角色 CG 解锁 ----
+    @Volatile private var cgUnlockOn = false
+    private val cgSnapPath by lazy {
+        java.io.File(ctx.getExternalFilesDir(null) ?: ctx.filesDir, "cg_unlock.snap").absolutePath
+    }
+
+    private fun runCgUnlockToggle() {
+        featureWindow?.dismiss(); featureWindow = null
+        if (cgUnlockBusy) { toast(R.string.busy_running); return }
+        val target = !cgUnlockOn
+        cgUnlockBusy = true
+        Thread {
+            val msg: String = try {
+                val pid = ensureLivePid()
+                if (pid <= 0) ctx.getString(R.string.not_connected_export)
+                else {
+                    if (target) {
+                        val json = NativeBridge.nativeCgUnlock(pid, "@UNAcquired", "H150_04", 0, cgSnapPath)
+                        if (json.contains("\"err\"")) {
+                            ctx.getString(R.string.cg_unlock_fail, json)
+                        } else {
+                            cgUnlockOn = true
+                            ctx.getString(R.string.cg_unlock_on_ok, jsonInt(json, "targets"))
+                        }
+                    } else {
+                        val json = NativeBridge.nativeCgRestore(pid, cgSnapPath)
+                        if (json.contains("\"err\"")) {
+                            ctx.getString(R.string.cg_unlock_fail, json)
+                        } else {
+                            cgUnlockOn = false
+                            ctx.getString(R.string.cg_unlock_off_ok)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                ctx.getString(R.string.cg_unlock_fail, e.message ?: "未知错误")
+            } finally {
+                cgUnlockBusy = false
+            }
+            main.post { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() }
+        }.start()
+    }
+
+    private fun jsonInt(json: String, key: String): Int =
+        Regex("\"" + Regex.escape(key) + "\"\\s*:\\s*(-?\\d+)")
+            .find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 0
 
     // ---- 子按钮②：连接 ----
     private fun onConnectClicked() {

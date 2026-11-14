@@ -5,6 +5,7 @@
  * 仅依赖 rubimem.c + libc。同 uid 即可读游戏内存,无需 root。
  */
 #include "rubimem.h"
+#include "mem_scan.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,18 +16,8 @@
 static const char *PART[] = {"Weapon","Body","Head","Necklace","Ring","Shoes","All","-"};
 
 /* ---- 读 il2cpp System.String -> utf8 ---- */
-static int ec_rstr(rm_handle_t*h,uint64_t s,char*o,int n){
-    o[0]=0; if(s<0x1000)return -1;
-    uint32_t L=0; if(rm_read_u32(h,s+0x10,&L)||L==0||L>200)return -1;
-    int k=0;
-    for(uint32_t i=0;i<L&&k<n-4;i++){
-        uint16_t c=0; if(rm_read(h,s+0x14+i*2,&c,2)!=2)break;
-        if(c<0x80)o[k++]=(char)c;
-        else if(c<0x800){o[k++]=0xC0|(c>>6);o[k++]=0x80|(c&0x3F);}
-        else{o[k++]=0xE0|(c>>12);o[k++]=0x80|((c>>6)&0x3F);o[k++]=0x80|(c&0x3F);}
-    }
-    o[k]=0; return k;
-}
+/* 实现已抽取到 mem_scan.c，装备导出与 CG 解锁共用 */
+#define ec_rstr ms_read_rstr
 
 /* PropertyValue -> "Type=Value": 整数原样, 小数→保留. 同时回传是否百分比 */
 static void ec_prop(rm_handle_t*h,uint64_t pv,char*o,int n){
@@ -50,54 +41,12 @@ static void json_esc(const char*in,char*out,int cap){
 }
 
 /* ---- 找所有匹配 C 字符串地址 ---- */
-static int ec_find_all_cstr(rm_handle_t*h,rm_map_t*maps,int n,const char*s,uint64_t*out,int maxn){
-    size_t slen=strlen(s);
-    static unsigned char buf[EC_BUF]; int cnt=0;
-    for(int i=0;i<n&&cnt<maxn;i++){
-        if(maps[i].perms[0]!='r')continue;
-        if(maps[i].path[0]=='/'&&(strstr(maps[i].path,"/dev/")||strstr(maps[i].path,"/dmabuf")))continue;
-        uint64_t a0=maps[i].start,e=maps[i].end;
-        for(uint64_t a=a0;a<e&&cnt<maxn;a+=sizeof(buf)-256){
-            size_t w=(e-a)<sizeof(buf)?(size_t)(e-a):sizeof(buf);
-            ssize_t g=rm_read(h,a,buf,w); if(g<(ssize_t)slen+1)continue;
-            for(ssize_t j=0;j+(ssize_t)slen+1<=g;j++){
-                if(buf[j]==(unsigned char)s[0]&&memcmp(buf+j,s,slen)==0&&buf[j+slen]==0){
-                    if(j==0||buf[j-1]==0) out[cnt++]=a+j;
-                    if(cnt>=maxn)break;
-                }
-            }
-        }
-    }
-    return cnt;
-}
+/* 实现已抽取到 mem_scan.c */
+#define ec_find_all_cstr ms_find_all_cstr
 
 /* ---- 定位 Il2CppClass*: name@+0x10 命中 name 串之一 且 ns@+0x18 指向 ns 串 ---- */
-__attribute__((unused))
-static uint64_t ec_find_klass(rm_handle_t*h,rm_map_t*maps,int n,const char*cls,const char*ns){
-    uint64_t namestrs[256];
-    int nn=ec_find_all_cstr(h,maps,n,cls,namestrs,256);
-    if(!nn)return 0;
-    size_t nslen=strlen(ns);
-    static unsigned char buf[EC_BUF];
-    for(int i=0;i<n;i++){
-        if(maps[i].perms[0]!='r'||maps[i].perms[1]!='w')continue;
-        if(maps[i].path[0]=='/'&&(strstr(maps[i].path,"/dev/")||strstr(maps[i].path,"/dmabuf")))continue;
-        uint64_t a0=maps[i].start,e=maps[i].end;
-        for(uint64_t a=a0;a<e;a+=sizeof(buf)-64){
-            size_t w=(e-a)<sizeof(buf)?(size_t)(e-a):sizeof(buf);
-            ssize_t g=rm_read(h,a,buf,w); if(g<0x20)continue;
-            for(ssize_t j=0;j+0x20<=g;j+=8){
-                uint64_t pn; memcpy(&pn,buf+j+0x10,8);
-                int nm=0; for(int k=0;k<nn;k++) if(pn==namestrs[k]){nm=1;break;}
-                if(!nm)continue;
-                uint64_t pns; memcpy(&pns,buf+j+0x18,8);
-                char nsbuf[64]={0}; rm_read(h,pns,nsbuf,nslen+1);
-                if(memcmp(nsbuf,ns,nslen)==0&&nsbuf[nslen]==0) return a+j;
-            }
-        }
-    }
-    return 0;
-}
+/* 实现已抽取到 mem_scan.c */
+#define ec_find_klass ms_find_klass
 
 /* 一次内存遍历同时定位 3 个类(EquipmentData/Container/StaticData)，避免 3 趟全扫。 */
 static void ec_find_klasses(rm_handle_t*h,rm_map_t*maps,int n,
@@ -379,7 +328,14 @@ static int ec_collect_instakill(pid_t pid){
     rm_handle_t h; if(rm_open(&h,pid))return -1;
     static rm_map_t maps[8192]; int n=rm_read_maps(pid,maps,8192);
     if(n<=0){rm_close(&h);return -2;}
-    uint64_t klass=ec_find_klass(&h,maps,n,"RoleAwakenStaticData","Game");
+    /*
+     * 类定位必须走元数据（ms_find_klass2）：ms_find_klass 靠"类名字符串
+     * 恰好等于某份命中的 name 指针"来匹配，同一份类名在内存里有上百份，
+     * 经常匹配到结构相似但不是 Il2CppClass 的位置，导致 -3（找不到）或
+     * 找到假类后扫不到条目（-4）。元数据 TypeDef 是唯一事实源。
+     */
+    uint64_t klass = ms_find_klass2(&h,maps,n,"RoleAwakenStaticData","Game",NULL);
+    if(!klass) klass = ms_find_klass(&h,maps,n,"RoleAwakenStaticData","Game");
     if(!klass){rm_close(&h);return -3;}
     static unsigned char buf[EC_BUF]; int cnt=0;
     for(int i=0;i<n&&cnt<IK_MAX;i++){
@@ -396,6 +352,8 @@ static int ec_collect_instakill(pid_t pid){
                 if(!ok||lv<1||lv>10)continue;
                 uint64_t cm=0; rm_read_ptr(&h,ps+0x18,&cm);
                 uint64_t va=ec_clone_attack_addr(&h,cm); if(!va)continue;
+                int dup=0; for(int k=0;k<cnt;k++) if(ik_addr[k]==va){dup=1;break;}
+                if(dup)continue;
                 ik_addr[cnt]=va; ik_lv[cnt]=(int8_t)lv; cnt++;
             }
         }
